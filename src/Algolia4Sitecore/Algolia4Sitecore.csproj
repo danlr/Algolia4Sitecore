@@ -71,6 +71,7 @@
     <Compile Include="Models\SampleDocumentModel.cs" />
     <Compile Include="Models\ItemRecord.cs" />
     <Compile Include="Pipelines\PublishProcessor\CustomPublishProcessor.cs" />
+    <Compile Include="PowershellHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\IIndexingService.cs" />
     <Compile Include="Services\IndexingService.cs" />
