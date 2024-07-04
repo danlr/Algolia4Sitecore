@@ -10,3 +10,4 @@ Important points:
 - this approach will work for solutions with small/medium amounts of items, when items are not changed and published frequeently. Batching is required for very dynamic content. Carefull deletion and regular full rebuild required if items are often deleted.
 - there are options for multi-language content. Here '{itemId}_{itemLang}' algolia object ID is used to separate language version. Different indexes are required per language if you have a lot of data and marketers want to manage indexes per language/market/
 - you do not want to manage index settings manually! Here we have 'PowershellHelper' class that will allow to set all indexes configuration as per config file with SPE.
+- 'Algolia4Sitecore.AdminApiKey' shouldn't be the OOTB admin key - best practice is to define custom API key with sufficient permissions and manage it outside the app
