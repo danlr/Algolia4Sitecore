@@ -47,11 +47,11 @@ namespace Algolia4Sitecore.Events
 
             if (context.Action == PublishAction.DeleteTargetItem)
             {
-                IndexingQueue.Delete(item);
+                IndexingQueue.IndexingQueue.Delete(item);
             }
             else if (context.Action != PublishAction.Skip)
             {
-                IndexingQueue.Add(item);
+                IndexingQueue.IndexingQueue.Add(item);
             }
         }
     }

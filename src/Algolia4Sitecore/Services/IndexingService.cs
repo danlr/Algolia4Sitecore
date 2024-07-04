@@ -9,6 +9,7 @@ using Algolia4Sitecore.Models;
 using Sitecore.Abstractions;
 using Sitecore.Data.Items;
 using Sitecore.Globalization;
+using Algolia.Search.Http;
 
 namespace Algolia4Sitecore.Services
 {
@@ -17,6 +18,11 @@ namespace Algolia4Sitecore.Services
         private readonly BaseMediaManager mediaManager;
         private readonly BaseLinkManager linkManager;
         private SearchClient client;
+
+        private RequestOptions requestOptions = new RequestOptions
+        {
+            Headers = new Dictionary<string, string> { { "X-Algolia-UserToken", "Algolia4Sitecore" } }
+        };
 
         public IndexingService(BaseLinkManager linkManager, BaseMediaManager mediaManager)
         {
@@ -53,7 +59,7 @@ namespace Algolia4Sitecore.Services
             if (item.HasBaseTemplate(SampleDocumentModel.TemplateId))
             {
                 var asset = new SampleDocumentModel(item, linkManager, mediaManager);
-                index.SaveObject(asset);
+                index.SaveObject(asset, requestOptions);
             }
         }
 
@@ -63,7 +69,7 @@ namespace Algolia4Sitecore.Services
 
             if (item.HasBaseTemplate(SampleDocumentModel.TemplateId))
             {
-                index.DeleteObject(ItemRecord.GetObjectId(item));
+                index.DeleteObject(ItemRecord.GetObjectId(item), requestOptions);
             }
         }
 
@@ -108,7 +114,7 @@ namespace Algolia4Sitecore.Services
             void SetSettings()
             {
                 var settings = Settings.GetDefaultIndexSettings(index.Name, language.Name);
-                algoliaIndex.SetSettings(settings, forwardToReplicas: false);
+                algoliaIndex.SetSettings(settings, forwardToReplicas: false, requestOptions:requestOptions);
             }
         }
     }
