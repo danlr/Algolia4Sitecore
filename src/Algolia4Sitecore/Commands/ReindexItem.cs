@@ -1,7 +1,6 @@
 ﻿namespace Algolia4Sitecore.Commands
 {
     using System.Collections.Specialized;
-    using Indexing;
     using IndexingQueue;
     using Services;
     using Sitecore;
@@ -16,9 +15,9 @@
     {
         private readonly IIndexingService indexingService;
 
-        public ReindexItem()
+        public ReindexItem(IIndexingService indexingService)
         {
-            this.indexingService = new IndexingService(new SimpleItemCrawler(new BaseItemParser()));
+            this.indexingService = indexingService;
         }
 
         protected Handle JobHandle { get; set; }
@@ -62,14 +61,14 @@
                 return;
             }
 
-            if (!this.indexingService.ItemShouldBeIndexed(itemByUri))
-            {
-                return;
-            }
+            // if (!this.indexingService.ItemShouldBeIndexed(itemByUri))
+            // {
+            //     return;
+            // }
 
             var queueItem = new IndexingQueueItem(itemByUri);
 
-            this.indexingService.IndexPageItemAsync(queueItem).Wait();
+            // this.indexingService.IndexPageItemAsync(queueItem).Wait();
 
             // Job job = JobManager.GetJob(this.JobHandle);
             if (Context.Job != null)

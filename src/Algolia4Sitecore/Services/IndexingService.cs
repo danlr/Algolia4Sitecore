@@ -1,273 +1,114 @@
-﻿namespace Algolia4Sitecore.Services
+﻿using Algolia.Search.Clients;
+using Sitecore.Diagnostics;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Algolia.Search.Exceptions;
+using Algolia4Sitecore.Configuration;
+using Algolia4Sitecore.Models;
+using Sitecore.Abstractions;
+using Sitecore.Data.Items;
+using Sitecore.Globalization;
+
+namespace Algolia4Sitecore.Services
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading.Tasks;
-
-    using Algolia.Search;
-
-    using Indexing;
-
-    using IndexingQueue;
-
-    using Newtonsoft.Json.Linq;
-
-    using Sitecore;
-    using Sitecore.Data;
-    using Sitecore.Data.Items;
-    using Sitecore.Globalization;
-    using Sitecore.Mvc.Extensions;
-
     public class IndexingService : IIndexingService
     {
-        private const int BatchSize = 1000;
-        private readonly IAlgoliaCrawler crawler;
-        private readonly Database database;
-        private AlgoliaClient client;
+        private readonly BaseMediaManager mediaManager;
+        private readonly BaseLinkManager linkManager;
+        private SearchClient client;
 
-        public IndexingService(IAlgoliaCrawler crawler)
+        public IndexingService(BaseLinkManager linkManager, BaseMediaManager mediaManager)
         {
-            this.crawler = crawler;
-            this.database = Database.GetDatabase(Settings.IndexingDatabase);
+            this.mediaManager = mediaManager;
+            this.linkManager = linkManager;
         }
 
-        public AlgoliaClient Client => this.client ?? (this.client = new AlgoliaClient(Settings.ApiApplicationId, Settings.ApiAdminKey));
+        protected SearchClient Client => this.client ?? (this.client = new SearchClient(Settings.AppName, Settings.AdminApiKey));
 
-        public void IndexPageItem(IndexingQueueItem queueItem)
+        protected List<IndexConfiguration> Indexes => Settings.IndexingConfiguration.Indexes.Values.ToList();
+
+        public void UpdateItem(Item item)
         {
-            Index index = this.Client.InitIndex(this.GetPagesIndexName(queueItem.Language));
-
-            if (!queueItem.Deleted)
+            foreach (IndexConfiguration indexConfiguration in Indexes.Where(index => ItemBelongsToIndex(item, index)))
             {
-                Item item = this.database.GetItem(ID.Parse(queueItem.Id), Language.Parse(queueItem.Language));
+                Log.Info($"Sending item {item.Paths.FullPath} to algolia", this);
+                SendItemToIndex(item, indexConfiguration);
+            }
+        }
 
-                index.AddObject(this.crawler.GetJsonForItem(item));
+        public void DeleteItem(Item item)
+        {
+            foreach (IndexConfiguration indexConfiguration in Indexes.Where(index => ItemBelongsToIndex(item, index)))
+            {
+                Log.Info($"Sending item {item.Paths.FullPath} to algolia", this);
+                DeleteItemFromIndex(item, indexConfiguration);
+            }
+        }
+
+        private void SendItemToIndex(Item item, IndexConfiguration indexConfiguration)
+        {
+            var index = Client.InitIndex(indexConfiguration.AlgoliaName);
+
+            if (item.HasBaseTemplate(SampleDocumentModel.TemplateId))
+            {
+                var asset = new SampleDocumentModel(item, linkManager, mediaManager);
+                index.SaveObject(asset);
+            }
+        }
+
+        private void DeleteItemFromIndex(Item item, IndexConfiguration indexConfiguration)
+        {
+            var index = Client.InitIndex(indexConfiguration.AlgoliaName);
+
+            if (item.HasBaseTemplate(SampleDocumentModel.TemplateId))
+            {
+                index.DeleteObject(ItemRecord.GetObjectId(item));
+            }
+        }
+
+        protected bool ItemBelongsToIndex(Item item, IndexConfiguration index)
+        {
+            return index.Templates.Contains(item.TemplateID.Guid) && (index.RootPaths.Any(path => item.Paths.FullPath.StartsWith(path, StringComparison.InvariantCultureIgnoreCase)));
+        }
+
+        public void InitAllIndexes(bool force = false)
+        {
+            foreach (var index in Indexes)
+            {
+                InitIndex(index, Language.Parse("en"), force);
+            }
+        }
+
+        public void InitIndex(IndexConfiguration index, Language language, bool force = false)
+        {
+            string indexName = index.AlgoliaName;
+
+            var algoliaIndex = Client.InitIndex(indexName);
+
+            if (force)
+            {
+                Log.Info($"Algolia:: Force init index:{indexName}", this);
+                SetSettings();
             }
             else
             {
-                index.DeleteObject(this.crawler.GetObjectId(queueItem.Id));
-            }
-        }
-
-        public async Task IndexPageItemAsync(IndexingQueueItem queueItem)
-        {
-            Index index = this.Client.InitIndex(this.GetPagesIndexName(queueItem.Language));
-
-            if (!queueItem.Deleted)
-            {
-                Item item = this.database.GetItem(ID.Parse(queueItem.Id), Language.Parse(queueItem.Language));
-
-                await index.AddObjectAsync(this.crawler.GetJsonForItem(item));
-            }
-            else
-            {
-                await index.DeleteObjectAsync(this.crawler.GetObjectId(queueItem.Id));
-            }
-        }
-
-        public void IndexPageItems(IEnumerable<IndexingQueueItem> queueItems)
-        {
-            var groupedByLanguage = queueItems
-                .Where(i => !i.Equals(IndexingQueueItem.Empty))
-                .GroupBy(i => i.Language)
-                .Where(grouping => !string.IsNullOrWhiteSpace(grouping.Key));
-
-            foreach (IGrouping<string, IndexingQueueItem> grouping in groupedByLanguage)
-            {
-                Index index = this.Client.InitIndex(this.GetPagesIndexName(grouping.Key));
-                Language language = Language.Parse(grouping.Key);
-                List<JObject> objectsToUpdate = new List<JObject>();
-                List<string> objectsToDelete = new List<string>();
-
-                foreach (IndexingQueueItem indexingQueueItem in grouping)
+                try
                 {
-                    if (indexingQueueItem.Deleted)
-                    {
-                        objectsToDelete.Add(this.crawler.GetObjectId(indexingQueueItem.Id));
-                    }
-                    else
-                    {
-                        Item item = this.database.GetItem(ID.Parse(indexingQueueItem.Id), language);
-
-                        if (item != null && item.Versions.Count > 0)
-                        {
-                            objectsToUpdate.Add(this.crawler.GetJsonForItem(item));
-                        }
-                    }
+                    // will fail if index just created with 'InitIndex' and has no settings
+                    algoliaIndex.GetSettings();
                 }
-
-                index.AddObjects(objectsToUpdate);
-                index.DeleteObjects(objectsToDelete);
-            }
-        }
-
-        public async Task IndexPageItemsAsync(IEnumerable<IndexingQueueItem> queueItems)
-        {
-            var groupedByLanguage = queueItems
-                .Where(i => !i.Equals(IndexingQueueItem.Empty))
-                .GroupBy(i => i.Language)
-                .Where(grouping => !string.IsNullOrWhiteSpace(grouping.Key));
-
-            foreach (IGrouping<string, IndexingQueueItem> grouping in groupedByLanguage)
-            {
-                Index index = this.Client.InitIndex(this.GetPagesIndexName(grouping.Key));
-                Language language = Language.Parse(grouping.Key);
-                List<JObject> objectsToUpdate = new List<JObject>();
-                List<string> objectsToDelete = new List<string>();
-
-                foreach (IndexingQueueItem indexingQueueItem in grouping)
+                catch (Exception ex) when ((ex is AlgoliaApiException) || (ex is AlgoliaException)) // index does not exist
                 {
-                    if (indexingQueueItem.Deleted)
-                    {
-                        objectsToDelete.Add(this.crawler.GetObjectId(indexingQueueItem.Id));
-                    }
-                    else
-                    {
-                        Item item = this.database.GetItem(ID.Parse(indexingQueueItem.Id), language);
-
-                        if (item != null && item.Versions.Count > 0)
-                        {
-                            objectsToUpdate.Add(this.crawler.GetJsonForItem(item));
-                        }
-                    }
-                }
-
-                await index.AddObjectsAsync(objectsToUpdate);
-                await index.DeleteObjectsAsync(objectsToDelete);
-            }
-        }
-
-        public bool ItemShouldBeIndexed(Item item)
-        {
-            if (item == null)
-            {
-                return false;
-            }
-
-            if (!Settings.IndexingRoot.Any(r => item.Paths.Path.StartsWith(r.Trim(), StringComparison.OrdinalIgnoreCase)))
-            {
-                return false;
-            }
-
-            if (Settings.IndexingSettings.ExcludedTemplates.Any(t => item.TemplateID.Guid.Equals(t)))
-            {
-                return false; // todo: may be check base templates as well?
-            }
-
-            if (Settings.IndexOnlyPages)
-            {
-                if (item[FieldIDs.LayoutField].IsEmptyOrNull() &&
-                    item[FieldIDs.FinalLayoutField].IsEmptyOrNull())
-                {
-                    return false;
+                    Log.Info($"Algolia:: Init index:{indexName}", this);
+                    SetSettings();
                 }
             }
 
-            return true;
-        }
-
-        public string GetPagesIndexName(string language)
-        {
-            return Settings.PageIndexesPrefix + language;
-        }
-
-        public IEnumerable<string> RebuildIndex(string language)
-        {
-            var indexName = this.GetPagesIndexName(language);
-            var tempIndexName = "temp_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmm") + "_" + this.GetPagesIndexName(language); // TODO: integrate IClock
-            Index tempIndex = this.Client.InitIndex(tempIndexName);
-
-            //this.logger.Info("Rebuild algolia index " + indexName, this);
-
-            tempIndex.SetSettings(JObject.FromObject(Settings.GetDefaultIndexSettings()), true);
-
-            //this.logger.Info("Temporary algolia index: " + tempIndexName, this);
-
-            yield return "Prepare temporary index " + tempIndexName;
-
-            foreach (List<IndexingQueueItem> list in this.GetAllIndexItems(language))
+            void SetSettings()
             {
-                //this.logger.Info("Add items: " + list.Count, this);
-
-                yield return "Add items: " + list.Count;
-
-                this.IndexPageItems(list, tempIndex, language);
-            }
-
-            //this.logger.Info("Switch indexes: " + tempIndexName + " to " + indexName, this);
-
-            this.client.MoveIndex(tempIndexName, indexName);
-
-            //this.logger.Info("done.", this);
-        }
-
-        private IEnumerable<List<IndexingQueueItem>> GetAllIndexItems(string language)
-        {
-            using (new LanguageSwitcher(language))
-            {
-                List<IndexingQueueItem> batch = new List<IndexingQueueItem>();
-
-                foreach (string path in Settings.IndexingRoot)
-                {
-                    Item rootItem = this.database.GetItem(path);
-
-                    foreach (var queueItem in this.GetIndexingList(rootItem))
-                    {
-                        batch.Add(queueItem);
-
-                        if (batch.Count >= BatchSize)
-                        {
-                            yield return batch;
-                            batch = new List<IndexingQueueItem>();
-                        }
-                    }
-                }
-
-                yield return batch;
-            }
-        }
-
-        private void IndexPageItems(IEnumerable<IndexingQueueItem> queueItems, Index index, string languageName)
-        {
-            Language language = Language.Parse(languageName);
-            List<JObject> objectsToUpdate = new List<JObject>();
-            List<string> objectsToDelete = new List<string>();
-
-            foreach (IndexingQueueItem indexingQueueItem in queueItems)
-            {
-                if (indexingQueueItem.Deleted)
-                {
-                    objectsToDelete.Add(this.crawler.GetObjectId(indexingQueueItem.Id));
-                }
-                else
-                {
-                    Item item = this.database.GetItem(ID.Parse(indexingQueueItem.Id), language);
-
-                    if (item != null && item.Versions.Count > 0)
-                    {
-                        objectsToUpdate.Add(this.crawler.GetJsonForItem(item));
-                    }
-                }
-            }
-
-            index.AddObjects(objectsToUpdate);
-            index.DeleteObjects(objectsToDelete);
-        }
-
-        private IEnumerable<IndexingQueueItem> GetIndexingList(Item rootItem)
-        {
-            if (this.ItemShouldBeIndexed(rootItem))
-            {
-                yield return new IndexingQueueItem(rootItem);
-            }
-
-            foreach (Item item in rootItem.GetChildren())
-            {
-                foreach (var indexable in this.GetIndexingList(item))
-                {
-                    yield return indexable;
-                }
+                var settings = Settings.GetDefaultIndexSettings(index.Name, language.Name);
+                algoliaIndex.SetSettings(settings, forwardToReplicas: false);
             }
         }
     }

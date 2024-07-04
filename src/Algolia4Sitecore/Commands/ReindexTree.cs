@@ -2,7 +2,6 @@
 {
     using System.Collections.Generic;
     using System.Collections.Specialized;
-    using Indexing;
     using IndexingQueue;
     using Services;
     using Sitecore;
@@ -17,9 +16,9 @@
     {
         private readonly IIndexingService indexingService;
 
-        public ReindexTree()
+        public ReindexTree(IIndexingService indexingService)
         {
-            this.indexingService = new IndexingService(new SimpleItemCrawler(new BaseItemParser()));
+            this.indexingService = indexingService;
         }
 
         protected Handle JobHandle { get; set; }
@@ -64,7 +63,7 @@
 
             List<IndexingQueueItem> itemsToIndex = this.GetIndexingList(rootItem);
 
-            this.indexingService.IndexPageItemsAsync(itemsToIndex).Wait();
+            // this.indexingService.IndexPageItemsAsync(itemsToIndex).Wait();
 
             if (Context.Job != null)
             {
@@ -80,18 +79,18 @@
             {
                 Context.Job.Status.Messages.Add(rootItem.Paths.FullPath);
             }
-
-            if (this.indexingService.ItemShouldBeIndexed(rootItem))
-            {
-                result.Add(new IndexingQueueItem(rootItem));
-            }
-            else
-            {
-                if (Context.Job != null)
-                {
-                    Context.Job.Status.Messages.Add("skip");
-                }
-            }
+            //
+            // if (this.indexingService.ItemShouldBeIndexed(rootItem))
+            // {
+            //     result.Add(new IndexingQueueItem(rootItem));
+            // }
+            // else
+            // {
+            //     if (Context.Job != null)
+            //     {
+            //         Context.Job.Status.Messages.Add("skip");
+            //     }
+            // }
 
             foreach (Item item in rootItem.GetChildren())
             {

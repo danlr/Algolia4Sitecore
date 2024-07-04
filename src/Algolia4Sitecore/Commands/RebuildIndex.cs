@@ -1,6 +1,5 @@
 ﻿namespace Algolia4Sitecore.Commands
 {
-    using Indexing;
     using Services;
     using Sitecore;
     using Sitecore.Data;
@@ -15,9 +14,9 @@
     {
         private readonly IIndexingService indexingService;
 
-        public RebuildIndex()
+        public RebuildIndex(IIndexingService indexingService)
         {
-            this.indexingService = new IndexingService(new SimpleItemCrawler(new BaseItemParser()));
+            this.indexingService = indexingService;
         }
 
         protected Handle JobHandle { get; set; }
@@ -39,16 +38,16 @@
 
             foreach (Language language in languages)
             {
-                string indexName = this.indexingService.GetPagesIndexName(language.Name);
+                // string indexName = this.indexingService.GetPagesIndexName(language.Name);
 
-                Context.Job.Status.Messages.Add("Rebuilding index: " + indexName);
-
-                var messages = this.indexingService.RebuildIndex(language.Name);
-
-                foreach (string message in messages)
-                {
-                    Context.Job.Status.Messages.Add(message);
-                }
+                // Context.Job.Status.Messages.Add("Rebuilding index: " + indexName);
+                //
+                // var messages = this.indexingService.RebuildIndex(language.Name);
+                //
+                // foreach (string message in messages)
+                // {
+                //     Context.Job.Status.Messages.Add(message);
+                // }
             }
         }
 

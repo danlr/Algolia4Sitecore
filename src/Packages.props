@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SitecoreVersion>10.3.*</SitecoreVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Update="Sitecore.Kernel" Version="$(SitecoreVersion)" />
+    <PackageReference Update="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Update="Algolia.Search" Version="6.17.0" />
+  </ItemGroup>
+</Project>

@@ -1,38 +1,30 @@
-﻿namespace Algolia4Sitecore.Events
-{
-    using System;
-    using Indexing;
-    using IndexingQueue;
-    using Services;
-    using Sitecore.Data.Items;
-    using Sitecore.Events;
-    using Sitecore.Publishing;
-    using Sitecore.Publishing.Pipelines.PublishItem;
+﻿using Sitecore.Diagnostics;
+using System;
+using Algolia4Sitecore.Services;
+using Sitecore.Data.Items;
+using Sitecore.Events;
+using Sitecore.Publishing;
+using Sitecore.Publishing.Pipelines.PublishItem;
 
+namespace Algolia4Sitecore.Events
+{
     public class IndexingHandler
     {
         private readonly IIndexingService indexingService;
 
-        public IndexingHandler()
+        public IndexingHandler(IIndexingService indexingService)
         {
-            this.indexingService = new IndexingService(new SimpleItemCrawler(new BaseItemParser()));
+            this.indexingService =indexingService;
         }
 
         public void OnItemDeleted(object sender, EventArgs args)
         {
             Item item = Event.ExtractParameter(args, 0) as Item;
-
-            if (item == null)
+            if (item != null)
             {
-                return;
+                indexingService.DeleteItem(item);
+                Log.Warn("Deleting item from algolia " + item.Paths.Path, this);
             }
-
-            if (!this.indexingService.ItemShouldBeIndexed(item))
-            {
-                return;
-            }
-
-            IndexingQueue.Delete(item);
         }
 
         public void OnItemProcessed(object sender, EventArgs args)
@@ -48,10 +40,10 @@
                 return;
             }
 
-            if (!this.indexingService.ItemShouldBeIndexed(item))
-            {
-                return;
-            }
+            // if (!this.indexingService.ItemShouldBeIndexed(item))
+            // {
+            //     return;
+            // }
 
             if (context.Action == PublishAction.DeleteTargetItem)
             {

@@ -1,26 +1,15 @@
-﻿namespace Algolia4Sitecore.Services
+﻿using Algolia4Sitecore.Configuration;
+using Sitecore.Data.Items;
+using Sitecore.Globalization;
+
+namespace Algolia4Sitecore.Services
 {
-    using System.Collections.Generic;
-    using System.Threading.Tasks;
-
-    using IndexingQueue;
-
-    using Sitecore.Data.Items;
-
     public interface IIndexingService
     {
-        void IndexPageItem(IndexingQueueItem queueItem);
+        void InitIndex(IndexConfiguration index, Language language, bool force = false);
 
-        Task IndexPageItemAsync(IndexingQueueItem queueItem);
+        void UpdateItem(Item item);
 
-        void IndexPageItems(IEnumerable<IndexingQueueItem> queueItems);
-
-        Task IndexPageItemsAsync(IEnumerable<IndexingQueueItem> queueItems);
-
-        bool ItemShouldBeIndexed(Item item);
-
-        string GetPagesIndexName(string language);
-
-        IEnumerable<string> RebuildIndex(string language);
+        void DeleteItem(Item item);
     }
 }

@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using Indexing;
     using IndexingQueue;
     using Services;
 
@@ -12,9 +11,9 @@
     {
         private readonly IIndexingService indexingService;
 
-        public IndexingAgent()
+        public IndexingAgent(IIndexingService indexingService)
         {
-            this.indexingService = new IndexingService(new SimpleItemCrawler(new BaseItemParser()));
+            this.indexingService = indexingService;
         }
 
         public void Run()
@@ -47,7 +46,7 @@
 
             Log.Info("Start indexing: " + items.Count + " items", this);
 
-            this.indexingService.IndexPageItems(items);
+            // this.indexingService.UpdateItem(items); // TODO: implement batch
 
             Log.Info("Indexing finished", this);
         }
