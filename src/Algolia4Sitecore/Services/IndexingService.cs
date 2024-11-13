@@ -21,7 +21,7 @@ namespace Algolia4Sitecore.Services
 
         private RequestOptions requestOptions = new RequestOptions
         {
-            Headers = new Dictionary<string, string> { { "X-Algolia-UserToken", "Algolia4Sitecore" } }
+            Headers = new Dictionary<string, string> { { "X-Algolia-UserToken", "Brimit_Sitecore_Integration(2.0)" } }
         };
 
         public IndexingService(BaseLinkManager linkManager, BaseMediaManager mediaManager)
