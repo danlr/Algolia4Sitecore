@@ -23,12 +23,8 @@
         public int MinWordSizefor1Typo { get; set; }
 
         public int MinWordSizefor2Typos { get; set; }
-
-        public string RemoveWordsIfNoResults { get; set; }
-
+        
         public bool AllowTyposOnNumericTokens { get; set; }
-
-        public bool RemoveStopWords { get; set; }
 
         public string Ranking { get; set; }
 

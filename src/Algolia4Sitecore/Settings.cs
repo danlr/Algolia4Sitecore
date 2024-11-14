@@ -1,10 +1,10 @@
-﻿namespace Algolia4Sitecore
+﻿using Algolia.Search.Models.Search;
+
+namespace Algolia4Sitecore
 {
     using System.Collections.Generic;
     using System;
     using System.Linq;
-
-    using Algolia.Search.Models.Settings;
 
     public class Settings
     {
@@ -24,6 +24,12 @@
         {
             var index = IndexingConfiguration.Indexes[indexName];
 
+            var languages = new List<SupportedLanguage>();
+            if (Enum.TryParse<SupportedLanguage>(language, out var lang))
+            {
+                languages.Add(lang);
+            }
+
             var indexSettings = new IndexSettings
             {
                 SearchableAttributes = index.SearchableFields,
@@ -33,11 +39,9 @@
                 MinWordSizefor1Typo = index.MinWordSizefor1Typo,
                 MinWordSizefor2Typos = index.MinWordSizefor2Typos,
                 PaginationLimitedTo = index.PaginationLimitedTo,
-                RemoveStopWords = index.RemoveStopWords,
                 AllowTyposOnNumericTokens = index.AllowTyposOnNumericTokens,
-                RemoveWordsIfNoResults = index.RemoveWordsIfNoResults,
                 UnretrievableAttributes = index.UnretrievableAttributes,
-                IndexLanguages = new List<string> { language },
+                IndexLanguages = languages,
                 CustomRanking = string.IsNullOrEmpty(index.CustomRanking) ? null : index.CustomRanking.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList(),
                 Ranking = string.IsNullOrEmpty(index.Ranking) ? null : index.Ranking.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList()
             };

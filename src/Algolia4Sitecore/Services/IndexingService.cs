@@ -30,7 +30,26 @@ namespace Algolia4Sitecore.Services
             this.linkManager = linkManager;
         }
 
-        protected SearchClient Client => this.client ?? (this.client = new SearchClient(Settings.AppName, Settings.AdminApiKey));
+        protected SearchClient Client
+        {
+            get
+            {
+                var searchClient = this.client;
+                if (searchClient != null)
+                {
+                    return searchClient;
+                }
+
+                var config = new SearchConfig(
+                    Settings.AppName,
+                    Settings.AdminApiKey
+                );
+
+                config.UserAgent.AddSegment("Brimit_Sitecore_Integration", "2.0");
+
+                return (this.client = new SearchClient(config));
+            }
+        }
 
         protected List<IndexConfiguration> Indexes => Settings.IndexingConfiguration.Indexes.Values.ToList();
 
@@ -54,22 +73,18 @@ namespace Algolia4Sitecore.Services
 
         private void SendItemToIndex(Item item, IndexConfiguration indexConfiguration)
         {
-            var index = Client.InitIndex(indexConfiguration.AlgoliaName);
-
             if (item.HasBaseTemplate(SampleDocumentModel.TemplateId))
             {
                 var asset = new SampleDocumentModel(item, linkManager, mediaManager);
-                index.SaveObject(asset, requestOptions);
+                Client.SaveObject(indexName: indexConfiguration.AlgoliaName, asset, requestOptions);
             }
         }
 
         private void DeleteItemFromIndex(Item item, IndexConfiguration indexConfiguration)
         {
-            var index = Client.InitIndex(indexConfiguration.AlgoliaName);
-
             if (item.HasBaseTemplate(SampleDocumentModel.TemplateId))
             {
-                index.DeleteObject(ItemRecord.GetObjectId(item), requestOptions);
+                Client.DeleteObject(indexName: indexConfiguration.AlgoliaName, ItemRecord.GetObjectId(item), requestOptions);
             }
         }
 
@@ -90,8 +105,6 @@ namespace Algolia4Sitecore.Services
         {
             string indexName = index.AlgoliaName;
 
-            var algoliaIndex = Client.InitIndex(indexName);
-
             if (force)
             {
                 Log.Info($"Algolia:: Force init index:{indexName}", this);
@@ -102,7 +115,7 @@ namespace Algolia4Sitecore.Services
                 try
                 {
                     // will fail if index just created with 'InitIndex' and has no settings
-                    algoliaIndex.GetSettings();
+                    Client.GetSettings(indexName: indexName);
                 }
                 catch (Exception ex) when ((ex is AlgoliaApiException) || (ex is AlgoliaException)) // index does not exist
                 {
@@ -114,7 +127,7 @@ namespace Algolia4Sitecore.Services
             void SetSettings()
             {
                 var settings = Settings.GetDefaultIndexSettings(index.Name, language.Name);
-                algoliaIndex.SetSettings(settings, forwardToReplicas: false, requestOptions:requestOptions);
+                Client.SetSettings(indexName: indexName, settings, options: requestOptions);
             }
         }
     }
